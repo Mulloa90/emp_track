@@ -1,8 +1,6 @@
 const inquirer = require("inquirer");
 require("console.table");
 const util = require("util");
-const { query } = require("./db/connection");
-const { connection } = require("./db/queries");
 
 const store = require("./db/queries");
 
@@ -18,7 +16,8 @@ function init() {
           "Add a department",
           "View All Roles",
           "View All Employees",
-          "Add new role",
+          "Add New Role",
+          "Add New Employee",
           "Quit",
         ],
       },
@@ -39,6 +38,9 @@ function init() {
           break;
         case "Add New Role":
           addNewRole();
+          break;
+        case "Add New Employee":
+          addNewEmployee();
           break;
         case "Quit":
           process.exit();
@@ -69,66 +71,121 @@ function createNewdepartment() {
     .prompt([
       {
         type: "input",
-        name: "Department Name",
+        name: "name",
         message: "Whats is the new departments name?",
       },
     ])
-    .then((response) => {
+    .then(({ name }) => {
       store
-        .createNewdepartment({ name: response["Department Name"] })
-        .then((response) => {
-          console.log(`Added ${response.name} to the db`);
+        .createNewdepartment({ name })
+        .then(() => {
+          console.log(`Added ${name} to the db`);
         })
         .then(() => {
           init();
         });
     });
 }
+
 function addNewRole() {
-  connection.query(`SELECT * FROM department;`, function (err, res) {
-    if (err) throw err;
-    const departments = [];
-    for (let i = 0; i <= res.length - 1; i++) {
-      departments.push(res[i].name);
-    }
+  store.getAllDepartments().then(([departments]) => {
+    const choices = departments.map((department) => ({
+      name: department.name,
+      value: department.id,
+    }));
+
     inquirer
       .prompt([
         {
           type: "input",
-          name: "Role name",
-          message: "What is the name of the role?",
+          name: "title",
+          message: "What is the title of the role?",
         },
         {
           type: "input",
-          name: "Salary",
+          name: "salary",
           message: "What is the salary of the role?",
         },
         {
-          type: "lists",
-          name: "department",
+          type: "list",
+          name: "department_id",
           message: "Which department does this role belong to?",
-          choices: departments,
+          choices: choices,
         },
       ])
-      .then((response) => {
-        let id;
-        for (let i = 0; i <= res.length - 1; i++) {
-          if (res[i].name === response["department"]) {
-            id = res[i].id;
-          }
-        }
+      .then(({ title, salary, department_id }) => {
         store
           .createNewRole({
-            title: response["Role Name"],
-            salary: response["Salary"],
-            department_id: response["departments"],
+            title,
+            salary,
+            department_id,
           })
-          .then((response) => {
-            console.log(`Added ${response.title} to the db`);
+          .then(() => {
+            console.log(`Added ${title} to the db`);
           })
           .then(() => {
             init();
           });
       });
+  });
+}
+
+function addNewEmployee() {
+  let roleChoices;
+  let managerChoices;
+
+  store.getAllRoles().then(([roles]) => {
+    roleChoices = roles.map((role) => ({
+      name: role.title,
+      value: role.id,
+    }));
+
+    store.getAllEmployees().then(([employees]) => {
+      managerChoices = employees.map((employee) => ({
+        name: employee.first_name + " " + employee.last_name,
+        value: employee.id,
+      }));
+
+      inquirer
+        .prompt([
+          {
+            type: "input",
+            name: "first_name",
+            message: "What is the Employees first name?",
+          },
+          {
+            type: "input",
+            name: "last_name",
+            message: "What is the Employees last name?",
+          },
+          {
+            type: "list",
+            name: "role_id",
+            message: "What is the Employees role?",
+            choices: roleChoices,
+          },
+          {
+            type: "list",
+            name: "manager_id",
+            message: "What is this Employees manager",
+            choices: managerChoices,
+          },
+        ])
+        .then(({ first_name, last_name, role_id, manager_id }) => {
+          store
+            .createNewEmployee({
+              first_name,
+              last_name,
+              role_id,
+              manager_id,
+            })
+            .then(() => {
+              console.log(`Added ${first_name} ${last_name} to the db`);
+            })
+            .then(() => {
+              init();
+            });
+        });
+    });
   });
 }
