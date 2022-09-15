@@ -1,6 +1,7 @@
 const inquirer = require("inquirer");
 require("console.table");
 const util = require("util");
+const { updateRole } = require("./db/queries");
 
 const store = require("./db/queries");
 
@@ -18,6 +19,7 @@ function init() {
           "View All Employees",
           "Add New Role",
           "Add New Employee",
+          "Update Employee Role",
           "Quit",
         ],
       },
@@ -41,6 +43,9 @@ function init() {
           break;
         case "Add New Employee":
           addNewEmployee();
+          break;
+        case "Update Employee Role":
+          updateEmployeeRole();
           break;
         case "Quit":
           process.exit();
@@ -186,6 +191,40 @@ function addNewEmployee() {
               init();
             });
         });
+    });
+  });
+}
+
+function updateEmployeeRole() {
+  store.getAllEmployees().then(([employees]) => {
+    const employeeChoices = employees.map((employee) => ({
+      name: employee.first_name + " " + employee.last_name,
+      value: employee.id,
+    }));
+    store.getAllRoles().then(([roles]) => {
+      const roleChoices = roles.map((role) => ({
+        name: role.title,
+        value: role.id,
+      }));
+      inquirer.prompt([
+        {
+          type: "list",
+          name: "employeeid",
+          message: "Which employee would you like to update?",
+          choices: employeeChoices,
+        },
+        {
+          type: "list",
+          name: "roleid",
+          message: "Which role do you want to assign the selected employee",
+          choices: roleChoices,
+        },
+      ]).then(({employeeid, roleid}) => {
+        store.updateRole(employeeid, roleid).then (() => {
+          console.log("Success")
+          init()
+        })
+      })
     });
   });
 }
